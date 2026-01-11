@@ -82,6 +82,9 @@ do {
     let parser = ArgumentParser(usage: "<options>", overview: "macOCR is a command line app that enables you to turn any text on your screen into text on your clipboard")
 
     let listLanguagesOption = parser.add(option: "--list-languages", kind: Bool.self, usage: "List supported OCR languages")
+    let rectOption = parser.add(option: "--rect", shortName: "-R", kind: String.self, usage: "Capture specific region: x,y,width,height (no interactive selection)")
+
+    var rectValues: (x: Int, y: Int, w: Int, h: Int)? = nil
 
     if(bigSur){
         let languageOption = parser.add(option: "--language", shortName: "-l", kind: String.self, usage: "Set Language (Supports Big Sur and Above)")
@@ -103,6 +106,17 @@ do {
             exit(EXIT_SUCCESS)
         }
 
+        // Parse rect option
+        if let rectString = parsedArguments.get(rectOption) {
+            let parts = rectString.split(separator: ",").compactMap { Int($0) }
+            if parts.count == 4 {
+                rectValues = (x: parts[0], y: parts[1], w: parts[2], h: parts[3])
+            } else {
+                print("Error: --rect requires format x,y,width,height (e.g., --rect 100,100,500,300)")
+                exit(EXIT_FAILURE)
+            }
+        }
+
         let language = parsedArguments.get(languageOption)
 
         if (language ?? "").isEmpty{
@@ -116,9 +130,25 @@ do {
             print("en-US (language detection requires macOS 11.0+)")
             exit(EXIT_SUCCESS)
         }
+
+        // Parse rect option
+        if let rectString = parsedArguments.get(rectOption) {
+            let parts = rectString.split(separator: ",").compactMap { Int($0) }
+            if parts.count == 4 {
+                rectValues = (x: parts[0], y: parts[1], w: parts[2], h: parts[3])
+            } else {
+                print("Error: --rect requires format x,y,width,height (e.g., --rect 100,100,500,300)")
+                exit(EXIT_FAILURE)
+            }
+        }
     }
 
-    let _ = ScreenCapture.captureRegion(destination: "/tmp/ocr.png")
+    // Capture screen region
+    if let rect = rectValues {
+        let _ = ScreenCapture.captureRect(destination: "/tmp/ocr.png", x: rect.x, y: rect.y, width: rect.w, height: rect.h)
+    } else {
+        let _ = ScreenCapture.captureRegion(destination: "/tmp/ocr.png")
+    }
 
     if let features = detectText(fileName : inputURL), !features.isEmpty{}
 
